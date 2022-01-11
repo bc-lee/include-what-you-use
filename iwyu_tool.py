@@ -210,6 +210,28 @@ def split_command(cmdstr):
     return cmd
 
 
+def strip_plugins(compile_args):
+    """Strip plugin related command line arguments.
+
+    Python port of C++ clang::tooling::getStripPluginsAdjuster
+    """
+    result = []
+    i = 0
+    length = len(compile_args)
+    while i < length:
+        if (i + 4 < length and compile_args[i] == "-Xclang" and (
+                    compile_args[i + 1] == "-load" or
+                    compile_args[i + 1] == "-plugin" or
+                    compile_args[i + 1].startswith("-plugin-arg-") or
+                    compile_args[i + 1] == "-add-plugin") and
+                compile_args[i + 2] == "-Xclang"):
+            i += 4
+            continue
+        result.append(compile_args[i])
+        i += 1
+    return result
+
+
 def find_include_what_you_use():
     """ Find IWYU executable and return its full pathname. """
     if 'IWYU_BINARY' in os.environ:
@@ -307,6 +329,7 @@ class Invocation(object):
 
         # Rewrite the compile command for IWYU
         compile_command, compile_args = command[0], command[1:]
+        compile_args = strip_plugins(compile_args)
         if is_msvc_driver(compile_command):
             # If the compiler is cl-compatible, let IWYU be cl-compatible.
             extra_args = ['--driver-mode=cl'] + extra_args
